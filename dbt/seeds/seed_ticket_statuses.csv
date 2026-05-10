@@ -1,0 +1,5 @@
+id,code,label,is_terminal
+1,open,Ouvert,false
+2,in_progress,En cours,false
+3,resolved,Résolu,true
+4,closed,Clos,true

@@ -1,0 +1,37 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "Données brutes raffinées chargées par le loader Python (voc.warehouse.loader)."
+    schema: raw
+    tables:
+      - name: raw_reviews
+        description: "Avis collectés sur Trustpilot/Google Play/App Store + flags qualité + classification."
+        columns:
+          - name: source_review_id
+            tests: [not_null]
+          - name: source_code
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['trustpilot', 'google_play', 'app_store']
+          - name: brand_code
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ['abritel', 'airbnb', 'booking']
+          - name: review_date
+            tests: [not_null]
+          - name: rating
+          - name: text
+          - name: is_exploitable
+            tests: [not_null]
+          - name: severity_code
+            tests:
+              - accepted_values:
+                  values: ['low', 'medium', 'high']
+          - name: category_source
+            description: "Origine de la catégorie : 'heuristic' (mots-clés) ou 'llm' (Ollama)."
+            tests:
+              - accepted_values:
+                  values: ['heuristic', 'llm']

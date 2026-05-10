@@ -1,0 +1,26 @@
+.git
+.gitignore
+.DS_Store
+.idea
+.vscode
+.cursor
+
+# Secrets / env local (référence seule : .env.example peut rester hors image si présent)
+.env
+.env.*
+!.env.example
+
+*.log
+
+.venv
+.pytest_cache
+__pycache__
+*.pyc
+*.egg-info
+data/bronze
+data/alerts.csv
+data/tickets.csv
+airflow/logs
+dbt/target
+dbt/dbt_packages
+dbt/logs

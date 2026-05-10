@@ -1,0 +1,41 @@
+[project]
+name = "voc"
+version = "0.1.0"
+description = "Voice of Customer — pipeline d'écoute multi-canal des avis Abritel/Airbnb/Booking"
+readme = "README.md"
+requires-python = ">=3.12"
+
+# Dépendances pour le développement / tests local hors Docker.
+# En production, l'image Airflow installe ces deps via airflow/requirements.txt.
+dependencies = [
+    "pandas>=2.2,<3",
+    "pyarrow>=15",
+    "psycopg2-binary>=2.9,<3",
+    "google-play-scraper>=1.2.7,<2",
+    "beautifulsoup4>=4.12,<5",
+    "requests>=2.31,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+    "dbt-core>=1.8,<2",
+    "dbt-postgres>=1.8,<2",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

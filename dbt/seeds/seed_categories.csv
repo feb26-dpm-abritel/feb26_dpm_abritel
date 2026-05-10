@@ -1,0 +1,9 @@
+id,code,label,description,is_critical
+1,app_fr,Localisation / Langue,Traduction langue devise marque,false
+2,transparence_financiere,Transparence financière,Frais cachés tarification opacité,true
+3,fiabilite_reservations,Fiabilité réservations,Annulations indisponibilités calendrier,true
+4,service_client,Service client,SAV injoignable réponse insuffisante,true
+5,qualite_annonces,Qualité des annonces,Photos description non conforme,false
+6,parcours_paiement,Parcours paiement,Échec paiement double prélèvement,true
+7,communication_hote,Communication hôte,Message échange hôte propriétaire,false
+8,non_classe,Non classé,Hors catégories ou trop générique,false

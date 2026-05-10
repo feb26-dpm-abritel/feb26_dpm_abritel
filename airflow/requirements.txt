@@ -1,0 +1,13 @@
+# Dépendances ajoutées à l'image apache/airflow:2.10.3-python3.12.
+# Le client dbt et l'adapter Postgres tournent côté worker Airflow.
+# psycopg2-binary est déjà fourni par l'image Airflow (utilisé par sa metastore).
+dbt-core==1.8.7
+dbt-postgres==1.8.2
+pandas>=2.2,<3
+pyarrow>=15
+google-play-scraper>=1.2.7,<2
+beautifulsoup4>=4.12,<5
+requests>=2.31,<3
+# Playwright (Chromium headless) pour bypasser AWS WAF sur Trustpilot.
+# Le binaire Chromium est installé séparément dans le Dockerfile.
+playwright>=1.45,<2

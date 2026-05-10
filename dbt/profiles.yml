@@ -1,0 +1,14 @@
+voc:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      # Toutes les valeurs lues via env vars (cf. docker-compose.yml + .env).
+      host: "{{ env_var('VOC_PG_HOST', 'postgres') }}"
+      port: "{{ env_var('VOC_PG_PORT', '5432') | int }}"
+      user: "{{ env_var('VOC_PG_USER', 'postgres') }}"
+      password: "{{ env_var('VOC_PG_PASSWORD', 'postgres') }}"
+      dbname: "{{ env_var('VOC_PG_DBNAME', 'voc') }}"
+      # Schéma par défaut pour les modèles sans `+schema:` explicite.
+      schema: raw
+      threads: 4

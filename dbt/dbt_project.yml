@@ -1,0 +1,70 @@
+name: voc
+version: '1.0.0'
+config-version: 2
+
+profile: voc
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+analysis-paths: ["analyses"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  voc:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: view
+    marts:
+      +schema: marts
+      +materialized: table
+
+seeds:
+  voc:
+    +schema: marts
+    seed_brands:
+      +column_types:
+        id: integer
+        code: varchar
+        label: varchar
+        is_focus: boolean
+    seed_sources:
+      +column_types:
+        id: integer
+        code: varchar
+        label: varchar
+        type: varchar
+        url: varchar
+    seed_categories:
+      +column_types:
+        id: integer
+        code: varchar
+        label: varchar
+        description: varchar
+        is_critical: boolean
+    seed_personas:
+      +column_types:
+        id: integer
+        code: varchar
+        label: varchar
+    seed_severities:
+      +column_types:
+        id: integer
+        code: varchar
+        label: varchar
+        rank: integer
+    seed_ticket_statuses:
+      +column_types:
+        id: integer
+        code: varchar
+        label: varchar
+        is_terminal: boolean

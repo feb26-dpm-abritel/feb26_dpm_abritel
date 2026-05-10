@@ -1,0 +1,153 @@
+# Stack VoC MVP : Postgres (métastore Airflow + DWH VoC « voc ») + Airflow (web + scheduler).
+# dbt Postgres s'exécute dans le scheduler/worker via BashOperator.
+# Le volume `./data` sert aux parquets bronze et aux fichiers alerts/tickets (CSV audit).
+#
+# La couche BI est **externe** au compose : Power BI (ou tout autre outil)
+# se connecte directement à Postgres via localhost:5433, base `voc`, schéma `marts`.
+#
+# Profil optionnel `with-ollama` : démarre un service Ollama dans Docker.
+# Sans ce profil, le pipeline tape sur Ollama du Mac hôte via host.docker.internal.
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: airflow/Dockerfile
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres/${POSTGRES_DB:-airflow}
+    # Clé partagée scheduler ↔ webserver (sinon 403 sur le fetch de logs cross-host).
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY:-CHANGE_ME_AIRFLOW_SECRET_KEY}
+    # DSN du data warehouse VoC (DB séparée dans le même Postgres).
+    VOC_PG_DSN: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${VOC_PG_DBNAME:-voc}
+    VOC_PG_HOST: postgres
+    VOC_PG_PORT: '5432'
+    VOC_PG_USER: ${POSTGRES_USER:-postgres}
+    VOC_PG_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    VOC_PG_DBNAME: ${VOC_PG_DBNAME:-voc}
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
+    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+    PYTHONPATH: /opt/airflow/src
+    VOC_DATA_DIR: /opt/airflow/data
+    # Intégrations externes (passthrough du .env hôte).
+    OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+    OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:3b}
+    OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-60}
+    OLLAMA_ENABLED: ${OLLAMA_ENABLED:-true}
+    NOTION_TOKEN: ${NOTION_TOKEN:-}
+    NOTION_DATABASE_ID: ${NOTION_DATABASE_ID:-}
+    SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+    VOC_MAX_REVIEWS_PER_SOURCE: ${VOC_MAX_REVIEWS_PER_SOURCE:-100}
+    VOC_SCRAPE_WINDOW_DAYS: ${VOC_SCRAPE_WINDOW_DAYS:-30}
+    VOC_GP_MAX_PAGES: ${VOC_GP_MAX_PAGES:-3}
+    VOC_AS_MAX_PAGES: ${VOC_AS_MAX_PAGES:-3}
+    VOC_TP_MAX_PAGES: ${VOC_TP_MAX_PAGES:-2}
+    AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-airflow}
+    AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
+  extra_hosts:
+    # Permet host.docker.internal sur Linux (Mac/Windows l'ont déjà).
+    - "host.docker.internal:host-gateway"
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/logs:/opt/airflow/logs
+    - ./src:/opt/airflow/src
+    - ./dbt:/opt/airflow/dbt
+    - ./data:/opt/airflow/data
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on: &airflow-common-depends
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: voc-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-airflow}
+    ports:
+      # Hôte:5433 → conteneur:5432 (5432 souvent déjà pris par un Postgres local).
+      # Connexion depuis le Mac : psql -h localhost -p 5433 -U postgres -d voc
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Scripts SQL exécutés au premier démarrage (création de la DB voc).
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      retries: 10
+    restart: unless-stopped
+
+  airflow-init:
+    <<: *airflow-common
+    container_name: voc-airflow-init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db migrate
+        airflow users create \
+          --username "$${AIRFLOW_ADMIN_USER:-airflow}" \
+          --password "$${AIRFLOW_ADMIN_PASSWORD:-airflow}" \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@voc.local || true
+    restart: "no"
+
+  airflow-webserver:
+    <<: *airflow-common
+    container_name: voc-airflow-web
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    depends_on:
+      <<: *airflow-common-depends
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: voc-airflow-scheduler
+    command: scheduler
+    healthcheck:
+      test: ["CMD-SHELL", 'airflow jobs check --job-type SchedulerJob --hostname "$${HOSTNAME}"']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    depends_on:
+      <<: *airflow-common-depends
+      airflow-init:
+        condition: service_completed_successfully
+
+  # Service Ollama optionnel — actif uniquement avec le profil `with-ollama` :
+  #   docker compose --profile with-ollama up -d
+  # Penser à fixer OLLAMA_BASE_URL=http://ollama:11434 dans .env quand on l'active.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: voc-ollama
+    profiles: ["with-ollama"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  ollama-data:

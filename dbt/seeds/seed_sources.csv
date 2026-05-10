@@ -1,0 +1,4 @@
+id,code,label,type,url
+1,trustpilot,Trustpilot,web,https://fr.trustpilot.com
+2,google_play,Google Play,mobile,https://play.google.com
+3,app_store,App Store,mobile,https://apps.apple.com

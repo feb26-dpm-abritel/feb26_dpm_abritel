@@ -1,0 +1,80 @@
+version: 2
+
+models:
+  - name: fact_reviews
+    description: "Table de fait centrale : 1 ligne = 1 avis dédupliqué."
+    columns:
+      - name: id
+        tests: [unique, not_null]
+      - name: source_id
+        tests: [not_null]
+      - name: brand_id
+        tests: [not_null]
+      - name: date_id
+        tests: [not_null]
+      - name: is_exploitable
+        tests: [not_null]
+
+  - name: fact_classifications
+    description: "Classification d'un avis (1:1 dans le MVP)."
+    columns:
+      - name: id
+        tests: [unique, not_null]
+      - name: review_id
+        tests: [not_null]
+      - name: category_id
+        tests: [not_null]
+      - name: severity_id
+        tests: [not_null]
+
+  - name: fact_tickets
+    description: "Ticket auto-généré pour les avis critiques."
+    columns:
+      - name: id
+        tests: [unique, not_null]
+      - name: review_id
+        tests: [not_null]
+
+  - name: dim_brand
+    columns:
+      - name: id
+        tests: [unique, not_null]
+      - name: code
+        tests: [unique, not_null]
+
+  - name: dim_source
+    columns:
+      - name: id
+        tests: [unique, not_null]
+      - name: code
+        tests: [unique, not_null]
+
+  - name: dim_category
+    columns:
+      - name: id
+        tests: [unique, not_null]
+      - name: code
+        tests: [unique, not_null]
+
+  - name: dim_severity
+    columns:
+      - name: id
+        tests: [unique, not_null]
+      - name: code
+        tests:
+          - unique
+          - not_null
+          - accepted_values:
+              values: ['low', 'medium', 'high']
+
+  - name: dim_persona
+    columns:
+      - name: id
+        tests: [unique, not_null]
+      - name: code
+        tests: [unique, not_null]
+
+  - name: dim_date
+    columns:
+      - name: date_id
+        tests: [unique, not_null]

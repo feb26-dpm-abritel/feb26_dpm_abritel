@@ -1,0 +1,4 @@
+id,code,label,is_focus
+1,abritel,Abritel,true
+2,airbnb,Airbnb,false
+3,booking,Booking,false
